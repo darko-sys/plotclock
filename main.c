@@ -68,6 +68,17 @@ void init_Timer0_10ms(void)
     TIFR |= (1<<TOV0);              // Overflow-Flag löschen
     TIMSK |= (1<<TOIE0);            // Overflow-Interrupt aktivieren
 }
+/*
+void init_Timer1_10ms(void)
+{
+    // Timer 1: Clear Timer on Compare (CTC), Intervall: 10ms
+    TCCR1A = 0;
+    TCCR1B = (1<<WGM12) | (1<<CS10);
+    OCR1A  = (uint8_t)(int16_t)-(F_CPU / 1024 * 10e-3 + 0.5);                 // 100 Hz
+    TIFR |= (1<<OCF1A);
+    TIMSK |= (1 << OCIE1A);
+}
+*/
 void init_Timer2_RTC(void)
 {
     ACSR |= (1<<ACD);                      //turn off analog comparator
@@ -132,7 +143,61 @@ ISR(TIMER0_OVF_vect)                            // every 10ms
     tenMs++;
     TCNT0 = (uint8_t)TIMER_PRELOAD;  // Preload-Wert neu setzen
 }
+/*
+ISR(TIMER1_COMPA_vect)
+{
+    typedef enum
+    {
+        TI = 0,
+        HI = 1,
+        LO = 2
+    } Input;
 
+    typedef struct
+    {
+        uint8_t  state;
+        char     output;
+    } ZetaValue;
+
+    static const ZetaValue zeta[][3] PROGMEM =
+    {
+        //+--Ti--+ +--Hi--+ +--Lo--+ +--------+
+        { { 0,'e'},{ 1,'a'},{ 0,'x'} }, // S0
+        { { 2,'x'},{ 1,'x'},{ 0,'e'} }, // S1
+        { { 7,'x'},{ 2,'x'},{ 3,'x'} }, // S2
+        { { 4,'x'},{ 0,'e'},{ 3,'x'} }, // S3
+        { { 5,'x'},{ 0,'e'},{ 4,'x'} }, // S4
+        { { 6,'x'},{ 0,'e'},{ 5,'x'} }, // S5
+        { {11,'0'},{ 0,'e'},{ 6,'x'} }, // S6
+        { { 8,'x'},{ 7,'x'},{ 0,'e'} }, // S7
+        { { 0,'e'},{ 8,'x'},{ 9,'x'} }, // S8
+        { {10,'x'},{ 0,'e'},{ 9,'x'} }, // S9
+        { {11,'1'},{ 0,'e'},{10,'x'} }, // S10
+        { {12,'x'},{ 1,'a'},{11,'x'} }, // S11
+        { { 0,'e'},{ 1,'m'},{12,'x'} }  // S12
+    };
+    static uint8_t  state = 0;      // Aktueller Zustand S = { 0,...,12 }
+    static uint8_t  tenMs = 0;      // Hundertstelsekundenzähler [s÷100]
+    Input           input;          // Eingabe: I = { TI,HI,LO }
+    char            output;         // Ausgabe: O = { 'x','a','0','1','m','e' }
+
+    if( tenMs == DCF_T0 ||
+            tenMs == DCF_T1 ||
+            tenMs == DCF_T2 ||
+            tenMs == DCF_T3 ||
+            tenMs == DCF_T4 ||
+            tenMs == DCF_T5 ||
+            tenMs == DCF_T6  ) input = TI;  // NB: Eingabe Ti
+    else if(DCF_SIGNAL) input = HI;  //     dominiert Hi
+    else                   input = LO;  //     und Lo
+    output = pgm_read_byte(&(zeta[state][(uint8_t)input].output));
+    state  = pgm_read_byte(&(zeta[state][(uint8_t)input].state));
+    if( output == 'm' ) tenMs = 0;
+    if     ( output == 'a' ) tenMs = 0;
+    else if( output != 'x' ) dcfEvent = (DCFEvent)output;
+    tenMs++;
+}
+*/
 ISR(TIMER2_OVF_vect)
 {
     /*
